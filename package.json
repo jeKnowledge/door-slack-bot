@@ -6,16 +6,16 @@
   "author": "Teresa Salazar",
   "license": "",
   "engines": {
-    "node": "6.2.1",
-    "npm": "3.9.3"
+    "node": "7.1.0",
+    "npm": "3.10.9"
   },
   "scripts": {
     "start": "node app.js"
   },
   "dependencies": {
-    "@slack/client": "^3.5.0",
-    "body-parser": "^1.x.x",
-    "express": "4.13.4",
-    "request": "2.56.x"
+    "@slack/client": "3.10.9",
+    "body-parser": "3.10.9",
+    "express": "3.10.9",
+    "request": "3.10.9"
   }
 }
