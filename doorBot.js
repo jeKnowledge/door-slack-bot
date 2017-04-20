@@ -45,7 +45,7 @@ app.post('/', function(req, res, next){
 				firstButtonReleaseCheck = setInterval(function(){
 					if(gpio27.value == 0){
 						clearInterval(firstButtonReleaseCheck);
-
+						console.log("Button release");
 						// at this time, the user should be on his way to get the door
 
 						secondButtonPressCheck = setInterval(function(){
@@ -54,15 +54,20 @@ app.post('/', function(req, res, next){
 
 								OnSecondButtonPress();
 
-								var botPayload = makePayload();
-
+								var deltaTime = getDeltaTime();
+								var timeString = getTimeString(deltaTime);
+	
+								var botPayLoad = {
+									text: "Conseguiste um tempo de " + timeString + "!"
+								}
 								// checks if button was released in 60ms intervals
 								firstButtonReleaseCheck = setInterval(function(){
 									if(gpio27.value == 0){
 										clearInterval(firstButtonReleaseCheck);
-
+										console.log("Second release");
+										console.log("");
 										// send message to slack
-										return res.status(200).json(botPayload);
+										return res.status(200).json(botPayLoad);
 									}
 								},60);
 							}
@@ -112,7 +117,7 @@ function OnDoorCall(){
 
 function OnFirstButtonPress(){
 
-	console.log("First utton press!");
+	console.log("First button press!");
 
 	// Green OFF
 	gpio17.set(0);
@@ -125,21 +130,21 @@ function OnFirstButtonPress(){
 }
 
 function OnSecondButtonPress(){
+
+	console.log("Second button press!");
+
 	// stop the timer
 	endTime = getTime();
 	console.log("end time = " + endTime);
 }
 
-var makePayload = function(){
+var getDeltaTime = function(){
 	// get diff time inseconds
 	var deltaTime = (endTime - startTime)/1000; 
 	startTime = 0;
 	endTime = 0;
-	var timeString = getTimeString(deltaTime);
-	var payLoad = {
-		text: "Conseguiste um tempo de " + timeString + "!"
-	}
-
+	console.log(deltaTime);
+	return deltaTime;
 }
 
 function getTime(){
@@ -147,21 +152,38 @@ function getTime(){
 	return (date);
 }
 
-var getTimeString = function(deltaTime){
+var getTimeString = function(deltaT){
 	var horas = 0;
 	var minutos = 0;
 	var segundos = 0;
 	var string = "";
-	while(deltaTime >= (3600)){
+	while(deltaT >= (3600)){
 		horas++;
-		deltaTime -= 3600;
+		deltaT -= 3600;
 	}
-	while(deltaTime >= 60){
+	while(deltaT >= 60){
 		minutos++;
-		deltaTime -= 60;
+		deltaT -= 60;
 	}
-	if(horas > 0)
-		string = horas + " horas, ";
-	string = string + minutos + " minutos e " + segundos + " segundos";
+	while(deltaT > 1){
+		segundos++;
+		deltaT-= 1;
+	}
+	if(horas > 0){
+		string = horas + " hora";
+		if(horas > 1)
+			string = string + "s";
+		string = string + ", ";
+	}
+	if(minutos > 0){
+		string = string + minutos + " minuto";
+		if(minutos > 1)
+			string = string + "s";
+		string = string + " e ";
+	}
+	string = string + segundos + " segundo";
+		if(segundos > 1)
+			string = string + "s";
+
 	return string;
 }
