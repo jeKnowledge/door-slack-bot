@@ -171,43 +171,43 @@ function getTime() {
 }
 
 var getTimeString = function(deltaT) {
-  var horas = 0;
-  var minutos = 0;
-  var segundos = 0;
+  var hours = 0;
+  var minutes = 0;
+  var seconds = 0;
   var string = '';
   while (deltaT >= (3600)) {
-    horas++;
+    hours++;
     deltaT -= 3600;
   }
 
   while (deltaT >= 60) {
-    minutos++;
+    minutes++;
     deltaT -= 60;
   }
 
   while (deltaT >= 1) {
-    segundos++;
+    seconds++;
     deltaT-= 1;
   }
 
-  if (horas > 0) {
-    string = horas + ' hora';
-    if (horas > 1)
+  if (hours > 0) {
+    string = hours + ' hora';
+    if (hours > 1)
       string = string + 's';
 
     string = string + ', ';
   }
 
-  if (minutos > 0) {
-    string = string + minutos + ' minuto';
-    if (minutos > 1)
+  if (minutes > 0) {
+    string = string + minutes + ' minuto';
+    if (minutes > 1)
       string = string + 's';
 
     string = string + ' e ';
   }
 
-  string = string + segundos + ' segundo';
-    if (segundos > 1)
+  string = string + seconds + ' segundo';
+    if (seconds > 1)
       string = string + 's';
 
   return string;
