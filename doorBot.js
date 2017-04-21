@@ -1,14 +1,21 @@
 var express    = require('express');
 var bodyParser = require('body-parser');
 var gpio       = require('gpio');
+var Slack      = require('slack-node');
 var fs         = require('fs');
 
 var app = express();
+slack = new Slack();
 var port = 3000; // same port as ngrok
 
 // number of milliseconds elapsed since 1 January 1970 
 var startTime = 0; // when the user is notified
-var endTime = 0;  // when the user returns from opening the door
+var endTime   = 0; // when the user returns from opening the door
+
+var messageLink = process.env.LINK;
+var token       = process.env.TOKEN;
+
+slack.setWebhook(messageLink);
 
 app.use(bodyParser.urlencoded({extended: true}));
 
@@ -18,16 +25,21 @@ app.get('/', function(req, res) {
 
 app.listen(port, function(){
 	console.log('Listening on port ' + port);
+	console.log(messageLink);
 });
+
+
 
 //===========================================================
 
 app.post('/', function(req, res, next){
 	var userName = req.body.user_name;
-	
+	var tok = req.body.token;		
 	// make sure there are no message loops, and only one user is being timed
-	if(userName === 'slackbot' || userName === 'Door' || startTime != 0){
+	if(userName === 'slackbot' || userName === 'Door' || startTime != 0 || tok !== token){
 		console.log("YOU SHALL NOT PASS!\n");
+		console.log(tok);
+		console.log(token);
 		return res.status(200).end();
 	} else {
 		// Turn on red LED (TODO: and sound buzzer for a limited time?/untill button press?)
@@ -47,7 +59,7 @@ app.post('/', function(req, res, next){
 						clearInterval(firstButtonReleaseCheck);
 						console.log("Button release");
 						// at this time, the user should be on his way to get the door
-
+						sendMessage("ON MY WAY!");
 						secondButtonPressCheck = setInterval(function(){
 							if(gpio27.value == 1){
 								clearInterval(secondButtonPressCheck);
@@ -71,14 +83,25 @@ app.post('/', function(req, res, next){
 									}
 								},60);
 							}
-						},60);
+						},10);
 					}
 				},60);
 			}
-		},60);
+		},10);
 	}
 			
 });
+
+
+function sendMessage(bodyText){
+	slack.webhook({
+		//channel:"#random",
+		username:"THE BOT",
+		text:bodyText
+	}, function(err, response) {
+		//console.log(response);
+	});
+}
 
 // flashing lights if led is on GPIO4
 //green led
@@ -165,7 +188,7 @@ var getTimeString = function(deltaT){
 		minutos++;
 		deltaT -= 60;
 	}
-	while(deltaT > 1){
+	while(deltaT >= 1){
 		segundos++;
 		deltaT-= 1;
 	}
