@@ -34,31 +34,28 @@ app.listen(port, function(){
 
 app.post('/', function(req, res, next){
   var userName = req.body.user_name;
-  var tok = req.body.token;		
+  //var channel = req.params.department;
+  var tok = req.body.token;   
   // make sure there are no message loops, and only one user is being timed
   if(userName === 'slackbot' || userName === 'Door' || startTime != 0 || tok !== token){
     console.log('YOU SHALL NOT PASS!\n');
-    console.log(tok);
-    console.log(token);
     return res.status(200).end();
   } else {
     // Turn on red LED (TODO: sound buzzer)
-    OnDoorCall();
-  	
+    var chosen = OnDoorCall('test', userName);
+    
     // checks if button was pressed in 60ms intervals
     firstButtonPressCheck = setInterval(function() {
       if (gpio27.value == 1) { 
         clearInterval(firstButtonPressCheck);
-  			
-        OnFirstButtonPress();
-  	
+        
+        OnFirstButtonPress(userName,chosen);
+    
         // checks if button was released in 60ms intervals
         firstButtonReleaseCheck = setInterval(function() {
           if (gpio27.value == 0) {
             clearInterval(firstButtonReleaseCheck);
             console.log('Button release');
-            // at this time, the user should be on his way to get the door
-            sendMessage('ON MY WAY!');
             secondButtonPressCheck = setInterval(function() {
               if (gpio27.value == 1) {
                 clearInterval(secondButtonPressCheck);  
@@ -85,19 +82,30 @@ app.post('/', function(req, res, next){
         },60);
       }
     },10);
-  }	
+  } 
 });
 
 
-function sendMessage(bodyText) {
+function sendMessage(msgChannel, msgText) {
   slack.webhook({
-    //channel:'#random',
-    username:'THE BOT',
-    text:bodyText
+    channel:msgChannel,
+    username:'HODOR',
+    text:msgText
   }, function(err, response) {
-    //console.log(response);
+    console.log(err);
   });
 }
+
+function pickRandom(department) {
+  console.log('===PICK RANDOM===');
+  console.log(department);
+  var members = JSON.parse(fs.readFileSync('members/' + department + '.json', 'utf8'));
+  console.log(members);
+  var chosenOne = members[Math.floor(Math.random() * members.length)];
+  console.log(chosenOne);
+  console.log('===END===');
+  return chosenOne;
+};
 
 // flashing lights if led is on GPIO4
 //green led
@@ -129,13 +137,21 @@ var gpio27 = gpio.export(27, {
   interval: 200
 });
 
-function OnDoorCall(){
+function OnDoorCall(callerChannel, callerName){
   // Green ON
   gpio17.set(1); 
   console.log('green on!');
+
+  // get a random user
+  var username = pickRandom(callerChannel);
+  console.log('Messaging: ' + callerChannel);
+  var channel = '@' + username;
+  var message = '@' + callerName + ' pede que abras a porta, por favor!';
+  sendMessage(channel,message);
+  return username;
 }
 
-function OnFirstButtonPress() {
+function OnFirstButtonPress(requester, buttonPresser) {
   console.log('First button press!');
 
   // Green OFF
@@ -145,6 +161,11 @@ function OnFirstButtonPress() {
   // start the timer
   startTime = getTime();
   console.log('start time = ' + startTime);
+
+  // at this time, the user should be on his way to get the door
+  var msgChannel = '@' + requester;
+  var msgText = '@' + buttonPresser + ' esta a caminho!';
+  sendMessage(msgChannel,msgText);
 }
 
 function OnSecondButtonPress() {

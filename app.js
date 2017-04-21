@@ -16,8 +16,8 @@ app.get('/', function(req, res) {
 });
 
 var pickRandom = function(department) {
-    var members = JSON.parse(fs.readFileSync('members/' + department + '.json', 'utf8'));
-    return members[Math.floor(Math.random() * members.length)];
+  var members = JSON.parse(fs.readFileSync('members/' + department + '.json', 'utf8'));
+  return members[Math.floor(Math.random() * members.length)];
 };
 
 app.post('/random/:department', function(req, res, next) {
