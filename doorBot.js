@@ -37,7 +37,7 @@ app.post('/', function(req, res, next){
   var tok = req.body.token;		
   // make sure there are no message loops, and only one user is being timed
   if(userName === 'slackbot' || userName === 'Door' || startTime != 0 || tok !== token){
-    console.log("YOU SHALL NOT PASS!\n");
+    console.log('YOU SHALL NOT PASS!\n');
     console.log(tok);
     console.log(token);
     return res.status(200).end();
@@ -56,9 +56,9 @@ app.post('/', function(req, res, next){
         firstButtonReleaseCheck = setInterval(function() {
           if (gpio27.value == 0) {
             clearInterval(firstButtonReleaseCheck);
-            console.log("Button release");
+            console.log('Button release');
             // at this time, the user should be on his way to get the door
-            sendMessage("ON MY WAY!");
+            sendMessage('ON MY WAY!');
             secondButtonPressCheck = setInterval(function() {
               if (gpio27.value == 1) {
                 clearInterval(secondButtonPressCheck);  
@@ -67,15 +67,14 @@ app.post('/', function(req, res, next){
                 var timeString = getTimeString(deltaTime);
   
                 var botPayLoad = {
-                  text: "Conseguiste um tempo de " + timeString + "!"
+                  text: 'Conseguiste um tempo de ' + timeString + '!'
                 }
 
                 // checks if button was released in 60ms intervals
                 secondButtonReleaseCheck = setInterval(function() {
                   if (gpio27.value == 0) {
                     clearInterval(secondButtonReleaseCheck);
-                    console.log("Second release");
-                    console.log("");
+                    console.log('Second release\n');
                     // send message to slack
                     return res.status(200).json(botPayLoad);
                   }
@@ -92,8 +91,8 @@ app.post('/', function(req, res, next){
 
 function sendMessage(bodyText) {
   slack.webhook({
-    //channel:"#random",
-    username:"THE BOT",
+    //channel:'#random',
+    username:'THE BOT',
     text:bodyText
   }, function(err, response) {
     //console.log(response);
@@ -133,28 +132,28 @@ var gpio27 = gpio.export(27, {
 function OnDoorCall(){
   // Green ON
   gpio17.set(1); 
-  console.log("green on!");
+  console.log('green on!');
 }
 
 function OnFirstButtonPress() {
-  console.log("First button press!");
+  console.log('First button press!');
 
   // Green OFF
   gpio17.set(0);
-  console.log("green off!");
+  console.log('green off!');
 
   // start the timer
   startTime = getTime();
-  console.log("start time = " + startTime);
+  console.log('start time = ' + startTime);
 }
 
 function OnSecondButtonPress() {
 
-  console.log("Second button press!");
+  console.log('Second button press!');
 
   // stop the timer
   endTime = getTime();
-  console.log("end time = " + endTime);
+  console.log('end time = ' + endTime);
 }
 
 var getDeltaTime = function() {
@@ -175,7 +174,7 @@ var getTimeString = function(deltaT) {
   var horas = 0;
   var minutos = 0;
   var segundos = 0;
-  var string = "";
+  var string = '';
   while (deltaT >= (3600)) {
     horas++;
     deltaT -= 3600;
@@ -192,24 +191,24 @@ var getTimeString = function(deltaT) {
   }
 
   if (horas > 0) {
-    string = horas + " hora";
+    string = horas + ' hora';
     if (horas > 1)
-      string = string + "s";
+      string = string + 's';
 
-    string = string + ", ";
+    string = string + ', ';
   }
 
   if (minutos > 0) {
-    string = string + minutos + " minuto";
+    string = string + minutos + ' minuto';
     if (minutos > 1)
-      string = string + "s";
+      string = string + 's';
 
-    string = string + " e ";
+    string = string + ' e ';
   }
 
-  string = string + segundos + " segundo";
+  string = string + segundos + ' segundo';
     if (segundos > 1)
-      string = string + "s";
+      string = string + 's';
 
   return string;
 }
