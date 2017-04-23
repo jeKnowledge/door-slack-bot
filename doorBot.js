@@ -3,10 +3,13 @@ var bodyParser = require('body-parser');
 var gpio       = require('gpio');
 var Slack      = require('slack-node');
 var fs         = require('fs');
+var jsonfile   = require('jsonfile'); 
 
 var app = express();
 slack = new Slack();
 var port = 3000; // same port as ngrok
+var highScoresFile = 'HighScores.json';
+var defaultChannel = '#door-channel';
 
 // number of milliseconds elapsed since 1 January 1970 
 var startTime = 0; // when the user is notified
@@ -32,48 +35,58 @@ app.listen(port, function(){
 
 //===========================================================
 
-app.post('/', function(req, res, next){
-  var userName = req.body.user_name;
-  //var channel = req.params.department;
+app.post('/', function(req, res, next) {
+
+  var requesterName = req.body.user_name;
+  var trigger = req.body.trigger_word;
   var tok = req.body.token;   
   // make sure there are no message loops, and only one user is being timed
-  if(userName === 'slackbot' || userName === 'Door' || startTime != 0 || tok !== token){
+  if(requesterName === 'slackbot' || requesterName === 'Door' || startTime != 0 || tok !== token){
     console.log('YOU SHALL NOT PASS!\n');
     return res.status(200).end();
   } else {
+    if (trigger === 'highscore'){
+      showHighScore();
+      return res.status(200).end();
+    }
+
+    var channel = trigger;
     // Turn on red LED (TODO: sound buzzer)
-    var chosen = OnDoorCall('test', userName);
+    var chosenName = OnDoorCall(channel, requesterName);
     
-    // checks if button was pressed in 60ms intervals
+    // checks if button was pressed in 10ms intervals
     firstButtonPressCheck = setInterval(function() {
       if (gpio27.value == 1) { 
         clearInterval(firstButtonPressCheck);
-        
-        OnFirstButtonPress(userName,chosen);
+
+        console.log('\nBUTTON -> press (1)');
+        OnFirstButtonPress(requesterName,chosenName);
     
         // checks if button was released in 60ms intervals
         firstButtonReleaseCheck = setInterval(function() {
           if (gpio27.value == 0) {
             clearInterval(firstButtonReleaseCheck);
-            console.log('Button release');
+
+            console.log('BUTTON -> release (1)');
+
+            // checks if button was pressed in 10ms intervals
             secondButtonPressCheck = setInterval(function() {
               if (gpio27.value == 1) {
-                clearInterval(secondButtonPressCheck);  
-                OnSecondButtonPress();  
-                var deltaTime = getDeltaTime();
-                var timeString = getTimeString(deltaTime);
-  
-                var botPayLoad = {
-                  text: 'Conseguiste um tempo de ' + timeString + '!'
-                }
+                clearInterval(secondButtonPressCheck); 
+
+                console.log('\nBUTTON -> press (2)');
+                var score = OnSecondButtonPress(requesterName,chosenName);  
 
                 // checks if button was released in 60ms intervals
                 secondButtonReleaseCheck = setInterval(function() {
                   if (gpio27.value == 0) {
                     clearInterval(secondButtonReleaseCheck);
-                    console.log('Second release\n');
-                    // send message to slack
-                    return res.status(200).json(botPayLoad);
+
+                    console.log('BUTTON -> release (2)');
+                    updateScore(chosenName, score);
+                    startTime = 0;
+                    endTime = 0;
+                    return res.status(200).end();
                   }
                 },60);
               }
@@ -85,6 +98,47 @@ app.post('/', function(req, res, next){
   } 
 });
 
+function showHighScore(){
+  var highScore = getHighScore();
+  var timeString = getTimeString(highScore.score);
+  var message = '@' + highScore.name + ' tem o melhor tempo (' + timeString + ')!';
+  sendMessage(defaultChannel, message);
+}
+
+function getHighScore(){
+  var obj = JSON.parse(fs.readFileSync(highScoresFile, 'utf8'));
+  var highScore = obj[0].score;
+  var highScoreIndex = 0;
+  for(var i = 0; i < obj.length; i++) {
+    if (obj[i].score < highScore) {
+      highScore = obj[i].score;
+      highScoreIndex = i;
+    }
+  }
+  return obj[highScoreIndex];
+}
+
+function updateScore(playerName, playerScore){
+  var obj = JSON.parse(fs.readFileSync(highScoresFile, 'utf8'));
+  for(var i = 0; i < obj.length; i++) {
+      if (obj[i].name === playerName) {
+        if (obj[i].score > playerScore) {
+          obj[i].score = playerScore;
+          jsonfile.writeFile(highScoresFile, obj, function(err){
+            if (err)
+              console.error(err);
+          })
+        }
+        return;
+      }
+  }
+  obj.push({name:playerName, score:playerScore});
+
+  jsonfile.writeFile(highScoresFile, obj, function(err){
+    if (err)
+      console.error(err);
+  })
+}
 
 function sendMessage(msgChannel, msgText) {
   slack.webhook({
@@ -92,18 +146,16 @@ function sendMessage(msgChannel, msgText) {
     username:'HODOR',
     text:msgText
   }, function(err, response) {
-    console.log(err);
+    if(err === null)
+      console.log('[MESSAGE]\n' + msgChannel + ' -> ' + msgText);
   });
 }
 
 function pickRandom(department) {
-  console.log('===PICK RANDOM===');
-  console.log(department);
   var members = JSON.parse(fs.readFileSync('members/' + department + '.json', 'utf8'));
-  console.log(members);
   var chosenOne = members[Math.floor(Math.random() * members.length)];
-  console.log(chosenOne);
-  console.log('===END===');
+  console.log('pickRandom -> ' + chosenOne);
+
   return chosenOne;
 };
 
@@ -140,54 +192,60 @@ var gpio27 = gpio.export(27, {
 function OnDoorCall(callerChannel, callerName){
   // Green ON
   gpio17.set(1); 
-  console.log('green on!');
+  console.log('Gren LED -> ON');
 
   // get a random user
-  var username = pickRandom(callerChannel);
-  console.log('Messaging: ' + callerChannel);
-  var channel = '@' + username;
-  var message = '@' + callerName + ' pede que abras a porta, por favor!';
-  sendMessage(channel,message);
-  return username;
+  var chosenName = pickRandom(callerChannel);
+  var channel = '@' + chosenName;
+  var privateMessage = '@' + callerName + ' pede que abras a porta, por favor!';
+  var publicMessage = '@' + chosenName + ' é a tua vez de abrir a porta :heart:';
+  sendMessage(channel, privateMessage);
+  sendMessage(defaultChannel, publicMessage);
+
+  return chosenName;
 }
 
 function OnFirstButtonPress(requester, buttonPresser) {
-  console.log('First button press!');
 
   // Green OFF
   gpio17.set(0);
-  console.log('green off!');
+  console.log('Gren LED -> OFF');
 
   // start the timer
   startTime = getTime();
-  console.log('start time = ' + startTime);
+  console.log('Start time -> ' + startTime);
 
   // at this time, the user should be on his way to get the door
   var msgChannel = '@' + requester;
-  var msgText = '@' + buttonPresser + ' esta a caminho!';
+  var msgText = '@' + buttonPresser + ' está a caminho!';
   sendMessage(msgChannel,msgText);
 }
 
-function OnSecondButtonPress() {
-
-  console.log('Second button press!');
+function OnSecondButtonPress(requesterName, chosenName) {
 
   // stop the timer
   endTime = getTime();
-  console.log('end time = ' + endTime);
+  console.log('End time -> ' + endTime);
+
+  var deltaTime = getDeltaTime();
+  var timeString = getTimeString(deltaTime);
+  var publicMessage = '@' + chosenName + ' abriu a porta em ' + timeString + '!';
+  sendMessage(defaultChannel, publicMessage);
+
+  return deltaTime;
 }
 
-var getDeltaTime = function() {
+function getDeltaTime() {
   // get diff time inseconds
-  var deltaTime = (endTime - startTime)/1000; 
-  startTime = 0;
-  endTime = 0;
-  console.log(deltaTime);
+  var deltaTime = Math.round((endTime - startTime)/1000);
+  console.log('Delta time -> ' + deltaTime);
+
   return deltaTime;
 }
 
 function getTime() {
   var date = Date.now();
+
   return (date);
 }
 
