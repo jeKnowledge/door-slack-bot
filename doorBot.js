@@ -170,9 +170,13 @@ function sendMessage(msgChannel, msgText) {
   });
 }
 
-function pickRandom(department) {
+function pickRandom(department, notMe) {
   var members = JSON.parse(fs.readFileSync('members/' + department + '.json', 'utf8'));
-  var chosenOne = members[Math.floor(Math.random() * members.length)];
+  do {
+    var chosenOne = members[Math.floor(Math.random() * members.length)];
+  } 
+  while (chosenOne === notMe);
+
   console.log('pickRandom -> ' + chosenOne);
 
   return chosenOne;
@@ -214,7 +218,7 @@ function OnDoorCall(callerChannel, callerName){
   console.log('Gren LED -> ON');
 
   // get a random user
-  var chosenName = pickRandom(callerChannel);
+  var chosenName = pickRandom(callerChannel, callerName);
   var channel = '@' + chosenName;
   var privateMessage = '@' + callerName + ' pede que abras a porta, por favor!';
   var publicMessage = '@' + chosenName + ' é a tua vez de abrir a porta :heart:';
